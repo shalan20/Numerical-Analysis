@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Numerical Methods</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .hidden {
+            display: none;
+        }
+        /*ch2*/
+        body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  h2 {
+    margin-bottom: 20px;
+  }
+  label {
+    font-weight: bold;
+  }
+  input[type="text"] {
+    width: 50px;
+  }
+  input[type="submit"] {
+    margin-top: 10px;
+    padding: 5px 10px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+  }
+  input[type="submit"]:hover {
+    background-color: #0056b3;
+  }
+  #solution {
+    margin-top: 20px;
+  }
+    </style>
+</head>
+<body>
+    <h2>Numerical Methods</h2>
+    <form id="inputForm">
+        <label for="function">Enter the function:</label>
+        <input type="text" id="function" name="function" required><br><br>
+        <label for="method">Select a method:</label>
+        <select id="method" name="method" required>
+            <option value="bisection">Bisection</option>
+            <option value="falsePosition">False Position</option>
+            <option value="fixedPoint">Simple Fixed Point</option>
+            <option value="newton">Newton</option>
+            <option value="secant">Secant</option>
+        </select><br><br>
+        <div id="lowerUpper" class="hidden">
+            <label for="lower">Lower bound:</label>
+            <input type="number" id="lower" name="lower"><br><br>
+            <label for="upper">Upper bound:</label>
+            <input type="number" id="upper" name="upper"><br><br>
+        </div>
+        <div id="initialPoint" class="hidden">
+            <label for="initialPoint">Initial point:</label>
+            <input type="number" id="initialPoint" name="initialPoint"><br><br>
+        </div>
+        <div id="secantPoints" class="hidden">
+            <label for="secantXMinus1">X-1:</label>
+            <input type="number" id="secantXMinus1" name="secantXMinus1"><br><br>
+            <label for="secantX0">X0:</label>
+            <input type="number" id="secantX0" name="secantX0"><br><br>
+        </div>
+        <label for="error">Error:</label>
+        <input type="number" id="error" name="error" step="any"><br><br>
+        <button type="submit">Calculate</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+        // JavaScript code for numerical methods
+
+        // Function to calculate the numerical method
+        function calculate(method, lower, upper, initialPoint, error, xMinus1, x0) {
+            let result;
+            const functionString = document.getElementById("function").value;
+            const eps = parseFloat(error);
+
+            // Parse the function string to a function
+            const f = x => parseFunction(functionString, x);
+
+            switch(method) {
+                case "bisection":
+                    result = bisect(f, lower, upper, eps);
+                    break;
+                case "falsePosition":
+                    result = falsePosition(f, lower, upper, eps);
+                    break;
+                case "fixedPoint":
+                    result = fixedPoint(f, initialPoint, eps);
+                    break;
+                case "newton":
+                    result = newton(f, initialPoint, eps); // Changed lower to initialPoint
+                    break;
+                case "secant":
+                    result = secant(f, xMinus1, x0, eps);
+                    break;
+                default:
+                    console.error("Invalid method");
+            }
+            
+            return result;
+        }
+
+        // Function to parse the function string and create a function
+        function parseFunction(functionString, x) {
+            // Replace sqrt with Math.sqrt in the function string
+            functionString = functionString.replace(/sqrt/g, 'Math.sqrt');
+            const func = new Function("x", "return " + functionString);
+            return func(x);
+        }
+
+        // Bisection Method
+        function bisect(f, xl, xu, eps) {
+            let iter = 0;
+            let xr = 0;
+            let xrOld = 0;
+            let error = 0;
+            let iterations = [];
+
+            do {
+                xrOld = xr;
+                xr = (xl + xu) / 2;
+                error = Math.abs((xr - xrOld) / xr) * 100;
+                iterations.push({ iter: iter, xl: xl, fxl: f(xl), xu: xu, fxu: f(xu), xr: xr, fxr: f(xr), error: error });
+                
+                if (f(xl) * f(xr) > 0) {
+                    xl = xr;
+                } else {
+                    xu = xr;
+                }
+                iter++;
+            } while (error > eps);
+
+            return { root: xr, iterations: iterations };
+        }
+
+        // False Position Method
+        function falsePosition(f, xl, xu, eps) {
+            let iter = 0;
+            let xr = 0;
+            let xrOld = 0;
+            let error = 0;
+            let iterations = [];
+
+            do {
+                xrOld = xr;
+                xr = xu - (f(xu) * (xl - xu)) / (f(xl) - f(xu));
+                error = Math.abs((xr - xrOld) / xr) * 100;
+                iterations.push({ iter: iter, xl: xl, fxl: f(xl), xu: xu, fxu: f(xu), xr: xr, fxr: f(xr), error: error });
+
+                if (f(xl) * f(xr) > 0) {
+                    xl = xr;
+                } else {
+                    xu = xr;
+                }
+                iter++;
+            } while (error > eps);
+
+            return { root: xr, iterations: iterations };
+        }
+
+        // Simple Fixed Point Method
+        function fixedPoint(f, x, eps) {
+            let iter = 0;
+            let xiPlus1 = 0;
+            let xi = x;
+            let error = 0;
+            let iterations = [];
+
+            do {
+                xiPlus1 = f(xi);
+                error = Math.abs((xiPlus1 - xi) / xiPlus1) * 100;
+                iterations.push({ iter: iter, xi: xi, xiPlus1: xiPlus1, error: error });
+
+                xi = xiPlus1;
+                iter++;
+            } while (error > eps);
+
+            return { root: xi, iterations: iterations };
+        }
+
+        // Newton's Method
+        function newton(f, xo, eps) {
+            let iter = 0;
+            let xiPlus1 = 0;
+            let xi = xo;
+            let error = 0;
+            let iterations = [];
+
+            do {
+                xiPlus1 = xi - (f(xi) / fDash(f, xi)); // Changed to call fDash function
+                error = Math.abs((xiPlus1 - xi) / xiPlus1) * 100;
+                iterations.push({ iter: iter, xi: xi, fxi: f(xi), error: error });
+
+                xo = xiPlus1;
+                iter++;
+            } while (error > eps);
+
+            return { root: xo, iterations: iterations };
+        }
+
+        // Secant Method
+        function secant(f, xMinus1, x0, eps) {
+            let iter = 0;
+            let xr = 0;
+            let xrOld = 0;
+            let error = 0;
+            let iterations = [];
+
+            do {
+                xrOld = xr;
+                xr = x0 - (f(x0) * (x0 - xMinus1)) / (f(x0) - f(xMinus1));
+                error = Math.abs((xr - xrOld) / xr) * 100;
+                iterations.push({ iter: iter, xMinus1: xMinus1, fXMinus1: f(xMinus1), x0: x0, fX0: f(x0), xr: xr, error: error });
+
+                xMinus1 = x0;
+                x0 = xr;
+                iter++;
+            } while (error > eps);
+
+            return { root: xr, iterations: iterations };
+        }
+
+        // Derivative of the function (for Newton's method)
+        function fDash(f, x) {
+            const h = 0.0001;
+            return (f(x + h) - f(x)) / h;
+        }
+
+        // Event listener for form submission
+        document.getElementById("inputForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            const method = formData.get("method");
+            const lower = parseFloat(formData.get("lower"));
+            const upper = parseFloat(formData.get("upper"));
+            const initialPoint = parseFloat(formData.get("initialPoint"));
+            const secantXMinus1 = parseFloat(formData.get("secantXMinus1"));
+            const secantX0 = parseFloat(formData.get("secantX0"));
+            const error = parseFloat(formData.get("error"));
+
+            // Calculate the result
+            const result = calculate(method, lower, upper, initialPoint, error, secantXMinus1, secantX0);
+
+            // Display the result
+            const resultDiv = document.getElementById("result");
+            resultDiv.innerHTML = `<h3>${method} Result</h3>
+                <table>
+                    <thead>
+                        ${getTableHeader(method)}
+                    </thead>
+                    <tbody>
+                        ${getTableRows(result, method)}
+                    </tbody>
+                </table>
+                <p>Root: ${result.root.toFixed(4)}</p>`;
+        });
+
+        // Function to get the table header based on the method
+        function getTableHeader(method) {
+            switch(method) {
+                case "bisection":
+                case "falsePosition":
+                    return `
+                        <tr>
+                            <th>Iteration</th>
+                            <th>xl</th>
+                            <th>f(xl)</th>
+                            <th>xu</th>
+                            <th>f(xu)</th>
+                            <th>xr</th>
+                            <th>f(xr)</th>
+                            <th>Error%</th>
+                        </tr>`;
+                case "fixedPoint":
+                    return `
+                        <tr>
+                            <th>Iteration</th>
+                            <th>xi</th>
+                            <th>xi+1</th>
+                            <th>Error%</th>
+                        </tr>`;
+                case "newton":
+                    return `
+                        <tr>
+                            <th>Iteration</th>
+                            <th>xi</th>
+                            <th>f(xi)</th>
+                            <th>Error%</th>
+                        </tr>`;
+                case "secant":
+                    return `
+                        <tr>
+                            <th>Iteration</th>
+                            <th>xi-1</th>
+                            <th>f(xi-1)</th>
+                            <th>xi</th>
+                            <th>f(xi)</th>
+                            <th>Error%</th>
+                        </tr>`;
+                default:
+                    return "";
+            }
+        }
+
+        // Function to get the table rows for the result
+        function getTableRows(result, method) {
+            return result.iterations.map(iter => {
+                switch(method) {
+                    case "bisection":
+                    case "falsePosition":
+                        return `
+                            <tr>
+                                <td>${iter.iter}</td>
+                                <td>${iter.xl}</td>
+                                <td>${iter.fxl}</td>
+                                <td>${iter.xu}</td>
+                                <td>${iter.fxu}</td>
+                                <td>${iter.xr}</td>
+                                <td>${iter.fxr}</td>
+                                <td>${iter.error.toFixed(4)}</td>
+                            </tr>`;
+                    case "fixedPoint":
+                        return `
+                            <tr>
+                                <td>${iter.iter}</td>
+                                <td>${iter.xi}</td>
+                                <td>${iter.xiPlus1}</td>
+                                <td>${iter.error.toFixed(4)}</td>
+                            </tr>`;
+                    case "newton":
+                        return `
+                            <tr>
+                                <td>${iter.iter}</td>
+                                <td>${iter.xi}</td>
+                                <td>${iter.fxi}</td>
+                                <td>${iter.error.toFixed(4)}</td>
+                            </tr>`;
+                    case "secant":
+                        return `
+                            <tr>
+                                <td>${iter.iter}</td>
+                                <td>${iter.xMinus1}</td>
+                                <td>${iter.fXMinus1}</td>
+                                <td>${iter.x0}</td>
+                                <td>${iter.fX0}</td>
+                                <td>${iter.error.toFixed(4)}</td>
+                            </tr>`;
+                    default:
+                        return "";
+                }
+            }).join('');
+        }
+
+        // Function to toggle input fields based on the selected method
+        function toggleInputs(method) {
+            const lowerUpper = document.getElementById("lowerUpper");
+            const initialPoint = document.getElementById("initialPoint");
+            const secantPoints = document.getElementById("secantPoints");
+
+            switch(method) {
+                case "bisection":
+                case "falsePosition":
+                    lowerUpper.classList.remove("hidden");
+                    initialPoint.classList.add("hidden");
+                    secantPoints.classList.add("hidden");
+                    break;
+                case "fixedPoint":
+                    lowerUpper.classList.add("hidden");
+                    initialPoint.classList.remove("hidden");
+                    secantPoints.classList.add("hidden");
+                    break;
+                case "newton":
+                    lowerUpper.classList.add("hidden");
+                    initialPoint.classList.remove("hidden");
+                    secantPoints.classList.add("hidden");
+                    break;
+                case "secant":
+                    lowerUpper.classList.add("hidden");
+                    initialPoint.classList.add("hidden");
+                    secantPoints.classList.remove("hidden");
+                    break;
+                default:
+                    lowerUpper.classList.add("hidden");
+                    initialPoint.classList.add("hidden");
+                    secantPoints.classList.add("hidden");
+                    break;
+            }
+        }
+
+        // Event listener for method selection
+        document.getElementById("method").addEventListener("change", function() {
+            const selectedMethod = this.value;
+            toggleInputs(selectedMethod);
+        });
+
+        // Initial toggle of input fields based on the default selected method
+        toggleInputs(document.getElementById("method").value);
+        //ch 2 javascript
+        //-------------------------------------------------------Chapter 2-------------------------------------------------------\\
+//1) LU decomosition//
+//this line means ------ choose this element (lu) and make changes to it//
+document.querySelector("#LUDecomposition").addEventListener("click", function(event) {
+    event.preventDefault();
+  
+    var a00 = parseFloat(document.getElementById('m00').value);
+    var a01 = parseFloat(document.getElementById('m01').value);
+    var a02 = parseFloat(document.getElementById('m02').value);
+  
+    var a10 = parseFloat(document.getElementById('m10').value);
+    var a11 = parseFloat(document.getElementById('m11').value);
+    var a12 = parseFloat(document.getElementById('m12').value);
+  
+    var a20 = parseFloat(document.getElementById('m20').value);
+    var a21 = parseFloat(document.getElementById('m21').value);
+    var a22 = parseFloat(document.getElementById('m22').value);
+  
+    var b0 = parseFloat(document.getElementById('b0').value);
+    var b1 = parseFloat(document.getElementById('b1').value);
+    var b2 = parseFloat(document.getElementById('b2').value);
+  
+    let a = [[a00, a01, a02], [a10, a11, a12], [a20, a21, a22], [b0, b1, b2]];
+    let b = [[b0, b1, b2]];
+    let c = [[0, 0, 0]];
+  
+    let m21 = a[1][0] / a[0][0];
+    var a10 = a[1][0] - m21 * a[0][0];
+    var a11 = a[1][1] - m21 * a[0][1];
+    var a12 = a[1][2] - m21 * a[0][2];
+    var b1 = b1 - (m21 * b0);
+  
+    let m31 = a[2][0] / a[0][0];
+    var a20 = a[2][0] - m31 * a[0][0];
+    var a21 = a[2][1] - m31 * a[0][1];
+    var a22 = a[2][2] - m31 * a[0][2];
+    var b2 = b2 - (m31 * b0);
+  
+    console.log("before r3", a = [[a00, a01, a02], [a10, a11, a12], [a20, a21, a22]]);
+  
+    let m32 = a[2][1] / a[1][1];
+    var a20 = a[2][0] - m32 * a[1][0];
+    var a21 = a[2][1] - m32 * a[1][1];
+    var a22 = a[2][2] - m32 * a[1][2];
+    var b2 = b2 - (m32 * b1);
+  
+    console.log(a = [[a00, a01, a02], [a10, a11, a12], [a20, a21, a22]]);
+  
+    let u = [[a00, a01, a02], [0, a11, a12], [0, 0, a22]];
+  
+    let l = [[1, 0, 0], [m21, 1, 0], [m31, m32, 1]];
+  
+    console.log("b at first", b);
+  
+    c[0][0] = b[0][0] / l[0][0];
+    c[0][1] = (b[0][1] - (l[1][0] * c[0][0])) / l[1][1];
+    c[0][2] = (b[0][2] - ((l[2][0] * c[0][0]) + (l[2][1] * c[0][1]))) / l[2][2];
+    console.log("c", c);
+  
+    let x3 = c[0][2] / u[2][2];
+    let x2 = (c[0][1] - u[1][2] * x3) / u[1][1];
+    let x1 = (c[0][0] - u[0][1] * x2 - u[0][2] * x3) / u[0][0];
+
+    // the next lines are so important 
+    let solution = "";
+  
+    solution += "X1 = " + x1 + "<br>";
+    solution += "X2 = " + x2 + "<br>";
+    solution += "X3 = " + x3;
+  
+    solution += "<br>The transformed matrix is:<br>";
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        solution += a[i][j].toFixed(1) + " ";
+      }
+      solution += "<br>";
+    }
+  
+    document.getElementById("solution").innerHTML = solution;
+  });
+  //2) gauss elimination
+  document.querySelector("#gauss").addEventListener("click", function(event) {
+    event.preventDefault();
+  
+    var a00 = parseFloat(document.getElementById('m00').value);
+    var a01 = parseFloat(document.getElementById('m01').value);
+    var a02 = parseFloat(document.getElementById('m02').value);
+  
+    var a10 = parseFloat(document.getElementById('m10').value);
+    var a11 = parseFloat(document.getElementById('m11').value);
+    var a12 = parseFloat(document.getElementById('m12').value);
+  
+    var a20 = parseFloat(document.getElementById('m20').value);
+    var a21 = parseFloat(document.getElementById('m21').value);
+    var a22 = parseFloat(document.getElementById('m22').value);
+  
+    var b0 = parseFloat(document.getElementById('b0').value);
+    var b1 = parseFloat(document.getElementById('b1').value);
+    var b2 = parseFloat(document.getElementById('b2').value);
+  
+    let m21 = a10 / a00;
+    let a10Modified = a10 - m21 * a00;
+    let a11Modified = a11 - m21 * a01;
+    let a12Modified = a12 - m21 * a02;
+    let b1Modified = b1 - m21 * b0;
+  
+    let m31 = a20 / a00;
+    let a20Modified = a20 - m31 * a00;
+    let a21Modified = a21 - m31 * a01;
+    let a22Modified = a22 - m31 * a02;
+    let b2Modified = b2 - m31 * b0;
+  
+    let m32 = a21Modified / a11Modified;
+    let a20Final = a20Modified - m32 * a10Modified;
+    let a21Final = a21Modified - m32 * a11Modified;
+    let a22Final = a22Modified - m32 * a12Modified;
+    let b2Final = b2Modified - m32 * b1Modified;
+  
+    let zg = b2Final / a22Final;
+    let yg = (b1Modified - a12Modified * zg) / a11Modified;
+    let xg = (b0 - a02 * zg - a01 * yg) / a00;
+  
+    let solution = "";
+  
+    solution += "X1 = " + xg + "<br>";
+    solution += "X2 = " + yg + "<br>";
+    solution += "X3 = " + zg;
+  
+    solution += "<br>The transformed matrix is:<br>";
+    solution += a00.toFixed(1) + " " + a01.toFixed(1) + " " + a02.toFixed(1) + "<br>";
+    solution += a10Modified.toFixed(1) + " " + a11Modified.toFixed(1) + " " + a12Modified.toFixed(1) + "<br>";
+    solution += a20Final.toFixed(1) + " " + a21Final.toFixed(1) + " " + a22Final.toFixed(1) + "<br>";
+  
+    document.getElementById("solution").innerHTML = solution;
+  });
+  //3) cramer rule
+  document.querySelector("#cramers").addEventListener("click", function(event){
+    event.preventDefault();
+    var a00 = parseFloat(document.getElementById('m00').value);
+    var a01 = parseFloat(document.getElementById('m01').value);
+    var a02 = parseFloat(document.getElementById('m02').value);
+  
+    var a10 = parseFloat(document.getElementById('m10').value);
+    var a11 = parseFloat(document.getElementById('m11').value);
+    var a12 = parseFloat(document.getElementById('m12').value);
+  
+    var a20 = parseFloat(document.getElementById('m20').value);
+    var a21 = parseFloat(document.getElementById('m21').value);
+    var a22 = parseFloat(document.getElementById('m22').value);
+  
+    var b0 = parseFloat(document.getElementById('b0').value);
+    var b1 = parseFloat(document.getElementById('b1').value);
+    var b2 = parseFloat(document.getElementById('b2').value);
+  
+    let detA =  a00 * ((a11 * a22) - (a21 * a12)) 
+               -a01 * ((a10 * a22) - (a20 * a12))
+               +a02 *((a10 * a21) - (a20 * a11));
+               
+    let detX = b0 * ((a11 * a22) - (a21 * a12))
+              -a01 * ((b1 * a22) - (b2 * a12))
+              +a02 * ((b1 * a21) - (b2 * a11));
+               
+    let detY = a00 * ((b1 * a22) - (b2 * a12)) 
+               -b0 * ((a10 * a22) - (a20 * a12))
+               +a02 *((a10 * b2) - (a20 * b1));
+  
+    let detZ = a00 * ((a11 * b2) - (a21 * b1)) 
+              -a01 * ((a10 * b2) - (a20 * b1))
+              +b0 *((a10 * a21) - (a20 * a11));
+  
+    let x = detX / detA;
+    let y = detY / detA;
+    let z = detZ / detA;
+  
+    let solution = "";
+  
+    solution += "X1 = " + x + "<br>";
+    solution += "X2 = " + y + "<br>";
+    solution += "X3 = " + z;
+  
+    document.getElementById("solution").innerHTML = solution;
+  });
+  //4) gaussjordan
+  document.querySelector("#gaussJordan").addEventListener("click", function(event){
+    event.preventDefault();
+  
+    let matrix = [
+      [Number(document.getElementById("m00").value), Number(document.getElementById("m01").value), Number(document.getElementById("m02").value), Number(document.getElementById("b0").value)],
+      [Number(document.getElementById("m10").value), Number(document.getElementById("m11").value), Number(document.getElementById("m12").value), Number(document.getElementById("b1").value)],
+      [Number(document.getElementById("m20").value), Number(document.getElementById("m21").value), Number(document.getElementById("m22").value), Number(document.getElementById("b2").value)]
+    ];
+  
+    for (let i = 0; i < matrix.length; i++) {
+      // Finding the row with the highest value in the current column
+      let maxRow = i; 
+      for (let j = i + 1; j < matrix.length; j++) {
+        if (Math.abs(matrix[j][i]) > Math.abs(matrix[maxRow][i])) {
+          maxRow = j;
+        }
+      }
+  
+      // Swap the rows
+      let temp = matrix[i];
+      matrix[i] = matrix[maxRow];
+      matrix[maxRow] = temp;
+  
+      // Make the pivot element 1
+      let pivot = matrix[i][i];
+      for (let j = i; j < matrix[i].length; j++) {
+        matrix[i][j] /= pivot;
+      }
+  
+      // Make other elements in the column 0
+      for (let j = 0; j < matrix.length; j++) {
+        if (j !== i) {
+          let factor = matrix[j][i];
+          for (let k = i; k < matrix[j].length; k++) {
+            matrix[j][k] -= factor * matrix[i][k];
+          }
+        }
+      }
+    }
+  
+    let solution = "";
+  
+    solution += "X1 = " + matrix[0][3].toFixed(1) + "<br>";
+    solution += "X2 = " + matrix[1][3].toFixed(1) + "<br>";
+    solution += "X3 = " + matrix[2][3].toFixed(1);
+  
+    solution += "<br>The transformed matrix is:<br>";
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        solution += Math.round(matrix[i][j]) + " ";
+      }
+      solution += "<br>";
+    }
+  
+    document.getElementById("solution").innerHTML = solution;
+  });
+  //5) gauss partial pivioting that means if it is necessary to interchange rows
+  document.querySelector("#gaussPP").addEventListener("click", function(event) {
+    event.preventDefault();
+  
+    // Get matrix values from input fields
+    const matrix = [];
+    for (let i = 0; i < 3; i++) {
+      const row = [];
+      for (let j = 0; j < 3; j++) {
+        const elementId = 'm' + i + j;
+        const elementValue = parseFloat(document.getElementById(elementId).value);
+        row.push(elementValue);
+      }
+      const bElementId = 'b' + i;
+      const bElementValue = parseFloat(document.getElementById(bElementId).value);
+      row.push(bElementValue);
+      matrix.push(row);
+    }
+      //**********// 
+      //**********// 
+    // Partial pivoting
+    for (let i = 0; i < 3; i++) {
+      let maxRowIndex = i;
+      for (let j = i + 1; j < 3; j++) {
+        if (Math.abs(matrix[j][i]) > Math.abs(matrix[maxRowIndex][i])) {
+          maxRowIndex = j;
+        }
+      }
+      if (maxRowIndex !== i) {
+        [matrix[i], matrix[maxRowIndex]] = [matrix[maxRowIndex], matrix[i]];
+      }
+    }
+  
+    // Gaussian elimination
+    for (let i = 0; i < 2; i++) {
+      for (let j = i + 1; j < 3; j++) {
+        const ratio = matrix[j][i] / matrix[i][i];
+        for (let k = i; k < 4; k++) {
+          matrix[j][k] -= ratio * matrix[i][k];
+        }
+      }
+    }
+  
+    // Back substitution
+    const solution = []; // Array to store the values of x1, x2, and x3
+    for (let i = 2; i >= 0; i--) {
+      let sum = 0;
+      for (let j = i + 1; j < 3; j++) {
+        sum += matrix[i][j] * solution[j];
+      }
+      const value = (matrix[i][3] - sum) / matrix[i][i];
+      solution[i] = value;
+    }
+  
+    // Display the solution
+    let result = "";
+    for (let i = 0; i < 3; i++) {
+      const variable = 'X' + (i + 1);
+      result += variable + " = " + solution[i].toFixed(1) + "<br>";
+    }
+  
+    result += "<br>The transformed matrix is:<br>";
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        result += Math.round(matrix[i][j]) + " ";
+      }
+      result += "<br>";
+    }
+  
+    document.getElementById("solution").innerHTML = result;
+  });
+  //6) lu partial pivioting 
+  document.querySelector("#LUPP").addEventListener("click", function(event) {
+    event.preventDefault();
+  
+    const matrix = [];
+    for (let i = 0; i < 3; i++) {
+      const row = [];
+      for (let j = 0; j < 3; j++) {
+        const elementId = 'm' + i + j;
+        const elementValue = parseFloat(document.getElementById(elementId).value);
+        row.push(elementValue);
+      }
+      const bElementId = 'b' + i;
+      const bElementValue = parseFloat(document.getElementById(bElementId).value);
+      row.push(bElementValue);
+      matrix.push(row);
+    }
+  
+    // Partial pivoting
+    for (let i = 0; i < 3; i++) {
+      let maxRowIndex = i;
+      for (let j = i + 1; j < 3; j++) {
+        if (Math.abs(matrix[j][i]) > Math.abs(matrix[maxRowIndex][i])) {
+          maxRowIndex = j;
+        }
+      }
+      if (maxRowIndex !== i) {
+        [matrix[i], matrix[maxRowIndex]] = [matrix[maxRowIndex], matrix[i]];
+      }
+    }
+  
+    
+    // LU decomposition
+    const L = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+    const U = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  
+    for (let i = 0; i < 3; i++) {
+      for (let j = i; j < 3; j++) {
+        let sum = 0;
+        for (let k = 0; k < i; k++) {
+          sum += L[i][k] * U[k][j];
+        }
+        U[i][j] = matrix[i][j] - sum;
+      }
+  
+      for (let j = i + 1; j < 3; j++) {
+        let sum = 0;
+        for (let k = 0; k < i; k++) {
+          sum += L[j][k] * U[k][i];
+        }
+        L[j][i] = (matrix[j][i] - sum) / U[i][i];
+      }
+    }
+  
+    console.log("L", L);
+    console.log("U", U);
+  
+    // Solve for x using forward and backward substitution
+    const b = [matrix[0][3], matrix[1][3], matrix[2][3]];
+    const y = [];
+    for (let i = 0; i < 3; i++) {
+      let sum = 0;
+      for (let j = 0; j < i; j++) {
+        sum += L[i][j] * y[j];
+      }
+      y[i] = (b[i] - sum) / L[i][i];
+    }
+  
+    const x = [];
+    for (let i = 2; i >= 0; i--) {
+      let sum = 0;
+      for (let j = i + 1; j < 3; j++) {
+        sum += U[i][j] * x[j];
+      }
+      x[i] = (y[i] - sum) / U[i][i];
+    }
+  
+    // Display the solution
+    let result = "";
+    for (let i = 0; i < 3; i++) {
+      const variable = 'X' + (i + 1);
+      result += variable + " = " + x[i].toFixed(1) + "<br>";
+    }
+  
+    console.log("L", L);
+    console.log("U", U);
+  
+    document.getElementById("solution").innerHTML = result;
+  });
+
+    </script>
+    //ch2 html
+    <div class="container">
+        <h2>Linear Algebra Calculator</h2>
+        <form id="calculatorForm">
+          <label for="m00">Matrix:</label>
+          <input type="text" id="m00"> <input type="text" id="m01"> <input type="text" id="m02"> <br>
+          <input type="text" id="m10"> <input type="text" id="m11"> <input type="text" id="m12"> <br>
+          <input type="text" id="m20"> <input type="text" id="m21"> <input type="text" id="m22"> <br>
+          <label for="b0">Vector b:</label>
+          <input type="text" id="b0"> <input type="text" id="b1"> <input type="text" id="b2"> <br>
+          <input type="submit" id="LUDecomposition" value="LU Decomposition">
+          <input type="submit" id="gauss" value="Gauss Elimination">
+          <input type="submit" id="cramers" value="Cramer's Rule">
+          <input type="submit" id="gaussJordan" value="Gauss-Jordan">
+          <input type="submit" id="gaussPP" value="Gauss Partial Pivoting">
+          <input type="submit" id="LUPP" value="LU Partial Pivoting">
+        </form>
+        <div id="solution"></div>
+      </div>
+      
+      
+</body>
+</html>
